@@ -1,1 +1,1 @@
-export * from './src/Stream';
+export * from './src/StringStream';

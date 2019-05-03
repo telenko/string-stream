@@ -1,10 +1,13 @@
-/**
- * Created by andrey on 02.03.2017.
- */
-export class Stream {
+const VALUE = Symbol();
+const INDEX = Symbol();
+const SNAPSHOT = Symbol();
+const RECORDING = Symbol();
+const RECORD_INDEX = Symbol();
+
+export class StringStream {
 
     constructor (value) {
-        this.value = value;
+        this[VALUE] = value;
     }
 
     /**
@@ -44,16 +47,12 @@ export class Stream {
      * }
      */
 
-    value;
-    index;
-    _currentSnapshot;
-    _isRecording = false;
-
     open () {
         moveSnapshot.call(this, 0);
     }
 
     readNext (sub) {
+        const START_INDEX = this[INDEX];
         var isSuccess = false;
         var subLength = sub.length;
         var isSubCh = subLength === 1;
@@ -82,6 +81,9 @@ export class Stream {
                 }
             }
         }
+        if (!isSuccess) {
+            this.moveBack(this[INDEX] - START_INDEX);
+        }
         return isSuccess;
     }
 
@@ -91,14 +93,12 @@ export class Stream {
         var SPACE = " ";
         while (!this.isCompleted()) {
             let nextCh = this.next();
-            if (nextCh !== SPACE && !wordOpened) {
+            if (nextCh === SPACE && !wordOpened) {
                 wordOpened = true;
-            }
-            if (nextCh === SPACE && wordOpened) {
+            } else if (nextCh === SPACE && wordOpened) {
                 wordOpened = false;
                 break;
-            }
-            if (wordOpened) {
+            } else if (wordOpened) {
                 word += nextCh;
             }
         }
@@ -107,15 +107,23 @@ export class Stream {
 
     next () {
         this.move(1);
-        return this._currentSnapshot[0];
+        return this.read();
+    }
+
+    read() {
+        return this[SNAPSHOT][0];
+    }
+
+    isFollowing(sub) {
+        return sub === this[SNAPSHOT].substring(0, sub.length);
     }
 
     isCompleted () {
-        return this.index > (this.value.length - 1);
+        return this[INDEX] > (this[VALUE].length - 1);
     }
 
     move (val) {
-        moveSnapshot.call(this, this.index + val);
+        moveSnapshot.call(this, this[INDEX] + val);
     }
 
     moveBack (val) {
@@ -123,26 +131,26 @@ export class Stream {
     }
 
     startRecording() {
-        this._isRecording = true;
-        this._recordStart = this.index;
+        this[RECORDING] = true;
+        this[RECORD_INDEX] = this[INDEX];
     }
 
     stopRecording() {
-        this._isRecording = false;
-        return this.value.substring(this._recordStart, this.index + 1);
+        this[RECORDING] = false;
+        return this[VALUE].substring(this[RECORD_INDEX], this[INDEX] + 1);
     }
 
     isRecording() {
-        return this._isRecording;
+        return this[RECORDING];
     }
 
 }
 
 function buildCurrentSnapshot () {
-    this._currentSnapshot = this.value.substring(this.index);
+    this[SNAPSHOT] = this[VALUE].substring(this[INDEX]);
 }
 
 function moveSnapshot (value) {
-    this.index = value;
+    this[INDEX] = value;
     buildCurrentSnapshot.call(this);
 }
